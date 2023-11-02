@@ -9,10 +9,12 @@ Live-SAPD-Calls-Mapper is a real-time data handling and mapping application for 
 
 ## Installation
 
-soon
+```git clone https://github.com/YellowRoseCx/Live-SAPD-Calls-Mapper```
 
 ## Usage
 
-soon
+```
+cd ./Live-SAPD-Calls-Mapper
+python livesapdmapper.py
+```
 
-## License
