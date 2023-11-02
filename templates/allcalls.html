@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>All Calls</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 auto;
+        }
+        th, td {
+            border: 1px solid #999;
+            padding: 0.5rem;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            color: #333;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        a:hover {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>All Calls for Service</h1>
+    <a href="{{ url_for('index') }}">Back to Map</a>
+    <table id="callsTable">
+        <tr>
+            <th>Incident Number</th>
+            <th>Call Datetime</th>
+            <th>Problem Type</th>
+            <th>Address</th>
+            <th>Division</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+        </tr>
+        {% for call in data %}
+        <tr id="{{ call.incident_number }}">
+            <td><a href="/?incident_number={{ call.incident_number }}">{{ call.incident_number }}</a></td>
+            <td>{{ call.calldatetime }}</td>
+            <td>{{ call.problem_type }}</td>
+            <td>{{ call.address }}</td>
+            <td>{{ call.division }}</td>
+            <td>{{ call.latitude }}</td>
+            <td>{{ call.longitude }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <div style="text-align:center; padding:1rem;">
+        {% for i in range(1, total_pages + 1) %}
+            <a href="{{ url_for('allcalls', page_num=i) }}">{{ i }}</a>
+        {% endfor %}
+    </div>
+</body>
+</html>
