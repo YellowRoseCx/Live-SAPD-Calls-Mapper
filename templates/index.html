@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live SAPD Calls Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        .my-div-icon {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            border: 1px solid #fff;
+            background-color: inherit; 
+        }
+    
+        </style>
+    </head>
+    <body>
+        <div id="map" style="height: 70vh; border: 1px solid #000000;"></div>
+        <div id="data-container">
+            <div id="last-updated" style="position:absolute;top:71vh;right:20px;"></div>
+            <div id="time-str" style="position:absolute;top:73vh;right:20px;"></div>
+            <a href="{{ url_for('allcalls', page_num=1) }}"><div style="position:absolute;top:75vh;right:20px;height:fit-content; width:fit-content; text-decoration: underline;">View All Calls</div></a>
+            <p><div id="user_session_id" style="position:absolute; top:77vh; height:fit-content; width:fit-content;right:20px;"></div></p>
+            <p><div style="position:absolute; top:71vh;height:fit-content;width:fit-content; color:#c0392b; text-decoration: underline 1px #000; text-underline-offset: 1px; text-decoration-thickness: 1%;">
+                <strong>OFFICERS HAVE RESPONDED AT THESE LOCATIONS:</strong>
+            </div></p>
+        <div id="calls" style="height:30rem;overflow-y:scroll;top:720px;width:50%;"></div>
+    </div>
+    
+    <script>
+        function getCrimeColor(crimeCategory) {
+            const propertyCrimes = ['Burglary', 'Burglary in Progress', 'Burglary Vehicle', 'Burglary Vehicle In Progress', 'Criminal Mischief', 'Criminal Mischief In Progress', 'Forgery', 'Forgery In Progress', 'Recovered Stolen Property', 'Shoplifting', 'Shoplifting In Progress', 'Theft', 'Theft In Progress', 'Theft of Vehicle', 'Theft of Vehicle In Progress'];
+            const crimesAgainstPerson = ['Assault', 'Assault In Progress', 'Child Locked in Vehicle', 'Cutting', 'Cutting In Progress', 'Disturbance (Gun Involved)', 'Disturbance (Knife Involved)', 'Disturbance Family Gun Involved', 'Disturbance Family Knife Involved', 'Disturbance Neighbor Gun Involved', 'Disturbance Neighbor Knife Involved', 'Fight', 'Fight Gun Involved', 'Fight Knife Involved', 'Holdup Alarm', 'Holdup Alarm In Progress', 'Internet Predator', 'Lewd Conduct', 'Robbery', 'Robbery In Progress', 'Robbery of Individual', 'Robbery of Individual','Shooting','Shooting In Progress','Suspicious Person with Gun','Suspicious Person with Knife','Suspicious Vehicle','Suspicious Vehicle with Gun','Threat - Bomb with Device','Threats','Threats Bomb In Progress','Violation of Protective Order'];
+            const trafficCalls = ['Abandoned Vehicle','DWI','High Water','Officer Traffic Stop','Traffic Related','Traffic Violation','Wrong Way Driver'];
+
+            if (propertyCrimes.includes(crimeCategory)) {
+                return "blue";
+            } else if (crimesAgainstPerson.includes(crimeCategory)) {
+                return "red";
+            } else if (trafficCalls.includes(crimeCategory)) {
+                return "green";
+            } else { // Other Calls
+                return "black";  
+            }
+        }
+
+        function getRandomDelay(min, max) {
+            return Math.floor(Math.random() * (max - min + 1) + min) * 1000; 
+        }
+        function updateLastUpdatedTime() {
+            const lastUpdatedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById('last-updated').textContent = `Last updated at: ${lastUpdatedTime}`;
+        }
+        var added_calls = new Set();
+        var map = L.map('map').setView([29.4241, -98.4936], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+        var markers = L.layerGroup().addTo(map);
+        document.addEventListener('DOMContentLoaded', (event) => {
+            function fetchDataOnLoad() {
+                fetch('/_fetch_old_data/')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(response => {
+                        let data = response.data;
+                        let timeStr = response.time_str;
+                        let prevHours = response.prev_hours;
+                        let user_session_id = response.user_session_id;
+                        let userID = document.querySelector('#user_session_id');
+                        userID.textContent = `User: ${user_session_id.slice(0, 4)}…${user_session_id.slice(-4)}`;
+                        userID.title = "Click to show full User ID";
+                        userID.onclick = () => { if (userID.textContent.includes('…')) { userID.textContent = `User: ${user_session_id}`; userID.title = "Click to hide full User ID";
+                            } else { userID.textContent = `User: ${user_session_id.slice(0, 4)}…${user_session_id.slice(-4)}`; userID.title = "Click to show full User ID";}};
+
+                        document.getElementById('time-str').textContent = "Showing calls in the last " + prevHours + " hours, since " + timeStr;
+                        if (data.length === 0) {
+                            setTimeout(fetchData, 1000);
+                            return;
+                        }
+                        data.sort((a, b) => new Date(a.calldatetime) - new Date(b.calldatetime));
+                        const callsList = document.getElementById('calls');
+                        for (let call of data) {
+                            if (!added_calls.has(call.incident_number)) { 
+                                let marker = L.marker([call.latitude, call.longitude], {icon: L.divIcon({className: 'my-div-icon', html: '<div class="my-div-icon" style="background-color:' + getCrimeColor(call.problem_type) + ';"></div>'})});
+                                let popup_text = `Incident Number: ${call.incident_number}<br>`;
+                                popup_text += `calldatetime: ${call.calldatetime}<br>`;
+                                popup_text += `Problem Type: ${call.problem_type}<br>`;
+                                popup_text += `Address: ${call.address}<br>`;
+                                popup_text += `Division: ${call.division}`;
+                                marker.bindPopup(popup_text);
+                                markers.addLayer(marker);
+                                marker._icon.id = call.incident_number;
+                                let call_element = document.createElement('p');
+                                call_element.id = call.incident_number;
+                                call_element.innerHTML = `${call.incident_number}: ${call.problem_type} at ${call.address} on ${call.calldatetime}`;
+                                call_element.addEventListener('click', function() {
+                                    document.getElementById(this.id).click(); 
+                                });
+                                callsList.insertBefore(call_element, callsList.firstChild);
+                                added_calls.add(call.incident_number);
+                            }
+                        }
+                        updateLastUpdatedTime();
+
+                        var incidentNumber = "{{ incident_number }}";
+                        if (incidentNumber && incidentNumber !== 'None') {
+                            document.getElementById(incidentNumber).click();
+                        }
+                        setTimeout(fetchData, 1000);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        setTimeout(fetchDataOnLoad, 60000);  
+                    });
+            }
+
+            function fetchData() {
+                setTimeout(() => {
+                    fetch('/_update_data/')  
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                        data.sort((a, b) => new Date(a.calldatetime) - new Date(b.calldatetime));
+                        const callsList = document.getElementById('calls');
+                        for (let call of data) {
+                            if (!added_calls.has(call.incident_number)) { 
+                                let marker = L.marker([call.latitude, call.longitude], {icon: L.divIcon({className: 'my-div-icon', html: '<div class="my-div-icon" style="background-color:' + getCrimeColor(call.problem_type) + ';"></div>'})});
+                                let popup_text = `Incident Number: ${call.incident_number}<br>`;
+                                popup_text += `calldatetime: ${call.calldatetime}<br>`;
+                                popup_text += `Problem Type: ${call.problem_type}<br>`;
+                                popup_text += `Address: ${call.address}<br>`;
+                                popup_text += `Division: ${call.division}`;
+                                marker.bindPopup(popup_text);
+                                markers.addLayer(marker);
+                                marker._icon.id = call.incident_number;
+
+                                let call_element = document.createElement('p');
+                                call_element.id = call.incident_number;
+                                call_element.innerHTML = `${call.incident_number}: ${call.problem_type} at ${call.address} on ${call.calldatetime}`;
+                                call_element.addEventListener('click', function() {
+                                    document.getElementById(this.id).click(); 
+                                });
+                                callsList.insertBefore(call_element, callsList.firstChild);
+                                added_calls.add(call.incident_number);
+                            }
+                        }
+                        updateLastUpdatedTime();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        setTimeout(fetchDataOnLoad, 60000);  
+                    })
+                });
+            }
+            fetchDataOnLoad();
+        setInterval(fetchData, getRandomDelay(45, 90));
+    });
+    </script>
+</body>
+</html>
