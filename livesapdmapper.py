@@ -146,7 +146,7 @@ class DataHandler:
                         self.psqlCursor.execute("INSERT INTO calls (url_location, incident_number, calldatetime, problem_type, address, division, latitude, longitude) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
                                     (call['location'], incident_number, call['calldatetime'], call['problem_type'], call['address'], call['division'], loc.latitude, loc.longitude))
                         self.psqlConn.commit()
-                        callstring = (f"{call['calldatetime']}: Call for Service {incident_number} at {call['address']} added for user {user_id}.")
+                        callstring = (f"{call['calldatetime']}: Call for Service {incident_number} at {call['address']} added for user {user_id_short}.")
                         print(callstring.replace("\n", ""))
         if new_call_found == False:
             print(f"No new calls found. Waiting to fetch more...")
