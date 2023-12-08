@@ -12,7 +12,7 @@ from waitress import serve
 from geopy.exc import GeocoderTimedOut
 from geopy.geocoders import Nominatim
 
-use_database = False  # Set this to False if you don't want to use the PostgreSQL database
+use_database = False  # Set this to True if you want to use the PostgreSQL database to save data between uses
 user_host = "127.0.0.1"
 user_port = "5012"
 db_username = "postgres"
